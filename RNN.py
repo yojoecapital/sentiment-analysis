@@ -3,47 +3,24 @@ import torch.nn as nn
 
 # Define the RNN model
 class Classifier(nn.Module):
-    def __init__(self, embedding_size: int, hidden_size: int, output_size: int, num_layers: int, vocab_size: int):
-        super(Classifier, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, embedding_size)
-        self.rnn = nn.RNN(embedding_size, hidden_size, num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, output_size)
+    def __init__(self, input_dim, embedding_dim, hidden_dim, output_dim):
+        super().__init__()
+        self.embedding = nn.Embedding(input_dim, embedding_dim)
+        self.rnn = nn.RNN(embedding_dim, hidden_dim)
+        self.fc = nn.Linear(hidden_dim, output_dim)
         
-    def forward(self, x):
-        embedded = self.embedding(x)
-        output, _ = self.rnn(embedded)
-        output = torch.sigmoid(self.fc(output[:, -1, :]))  
-        return output
+    def forward(self, text):
+        text = torch.transpose(text, 0, 1)
 
-def train(model: Classifier, optimizer, loss_fn, train_iter, val_iter, num_epochs=10):
-    for epoch in range(num_epochs):
-        model.train()
-        total_loss = 0.0
-        total_samples = 0
-        for batch in train_iter:
-            text, labels = batch.text, batch.label
-            optimizer.zero_grad()
-
-            outputs = model(text)
-            loss = loss_fn(outputs, labels.view(-1, 1)) 
-            loss.backward()
-            optimizer.step()
-            
-            total_loss += loss.item() * labels.size(0)
-            total_samples += labels.size(0)
+        #text = [sent len, batch size]
+        embedded = self.embedding(text)
         
-        average_loss = total_loss / total_samples
+        #embedded = [sent len, batch size, emb dim]
+        output, hidden = self.rnn(embedded)
         
-        model.eval()
-        total_correct = 0
-        total_samples = 0
-        with torch.no_grad():
-            for batch in val_iter:
-                text, labels = batch.text, batch.label
-                outputs = model(text)
-                predictions = (outputs > 0.5).float() 
-                total_correct += (predictions == labels.view_as(predictions)).sum().item()
-                total_samples += labels.size(0)
+        #output = [sent len, batch size, hid dim]
+        #hidden = [1, batch size, hid dim]
         
-        accuracy = total_correct / total_samples
-        print(f'Epoch {epoch + 1}, Average Loss: {average_loss:.2%}, Validation Accuracy: {accuracy:.2%}')
+        assert torch.equal(output[-1,:,:], hidden.squeeze(0))
+        
+        return self.fc(hidden.squeeze(0))
