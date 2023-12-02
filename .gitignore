@@ -1,2 +1,5 @@
 *.csv
 __pycache__/
+venv/
+.ipynb_checkpoints/
+.vector_cache/

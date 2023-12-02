@@ -1,48 +1,58 @@
-import torch
+import torch 
 import torch.nn as nn
+import torch.nn.functional as F
 
 class Classifier(nn.Module):
-    def __init__(self, embedding_size, hidden_size, output_size, num_layers, vocab_size):
+    def __init__(
+        self, 
+        input_dim: int, 
+        embedding_dim: int, 
+        hidden_dim: int, 
+        output_dim: int,
+        lstm_layers: int, 
+        bidirectional: bool, 
+        dropout_probability: float, 
+        padding_idx: int,
+        name: str
+    ):
         super(Classifier, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, embedding_size)
-        self.lstm = nn.LSTM(embedding_size, hidden_size, num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, output_size)
-        
-    def forward(self, x):
-        embedded = self.embedding(x)
-        output, _ = self.lstm(embedded)
-        output = torch.sigmoid(self.fc(output[:, -1, :]))  
-        return output
+        self.name = name
 
-def train(model: Classifier, optimizer, loss_fn, train_iter, val_iter, num_epochs=10):
-    for epoch in range(num_epochs):
-        model.train()
-        total_loss = 0.0
-        total_samples = 0
-        for batch in train_iter:
-            text, labels = batch.text, batch.label
-            optimizer.zero_grad()
+        self.embedding = nn.Embedding(input_dim, embedding_dim, padding_idx=padding_idx)
 
-            outputs = model(text)
-            loss = loss_fn(outputs, labels.view(-1, 1))
-            loss.backward()
-            optimizer.step()
-            
-            total_loss += loss.item() * labels.size(0)
-            total_samples += labels.size(0)
+        self.lstm = nn.LSTM(
+            embedding_dim, 
+            hidden_dim,
+            num_layers=lstm_layers,
+            bidirectional=bidirectional,
+            dropout=dropout_probability
+        )
+
+        self.dropout = nn.Dropout(dropout_probability)
         
-        average_loss = total_loss / total_samples
-        
-        model.eval()
-        total_correct = 0
-        total_samples = 0
-        with torch.no_grad():
-            for batch in val_iter:
-                text, labels = batch.text, batch.label
-                outputs = model(text)
-                predictions = (outputs > 0.5).float()
-                total_correct += (predictions == labels.view_as(predictions)).sum().item()
-                total_samples += labels.size(0)
-        
-        accuracy = total_correct / total_samples
-        print(f'Epoch {epoch + 1}, Average Loss: {average_loss:.2%}, Validation Accuracy: {accuracy:.2%}')
+        self.fully_connected = nn.Linear(hidden_dim * 2, output_dim)
+
+    def forward(self, sequences, true_lengths):
+
+        # (sequence_dim, batch_size) ->
+        embedded = self.dropout(self.embedding(sequences))
+
+        # (sequence_dim, batch_size, embedding_dim) ->
+
+        # pack_padded_sequence packes the embedding by only using the true sequence lengths
+        # i.e. getting rid of the padded tokens
+        packed_embedded = nn.utils.rnn.pack_padded_sequence(embedded, true_lengths.to('cpu'))
+        packed_output, (hidden, cell) = self.lstm(packed_embedded)
+
+        # unpack sequence to a tensor
+        output, output_lengths = nn.utils.rnn.pad_packed_sequence(packed_output)
+
+        # hidden: (D * lstm_layers, hidden_him) ->
+        # where D = 2 if bidirectional else 1
+        hidden = self.dropout(torch.cat((hidden[-2, :, :], hidden[-1, :, :]), dim=1))
+
+        # (batch_size, D * hidden_dim) ->
+        predictions = self.fully_connected(hidden)
+
+        # (batch_size, 1)
+        return predictions
