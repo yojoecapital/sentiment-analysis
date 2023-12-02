@@ -1,5 +1,7 @@
 # Sentiment Analysis
 
+The dataset used for this project was Sentiment140 sourced from [Kaggle](https://www.kaggle.com/datasets/kazanova/sentiment140/data).
+
 ## Getting Started
 
 ### Python Virtual Environment
@@ -16,12 +18,14 @@ Activate the environment with
 <venv>/Scripts/activate
 ```
 
->Note to record your environment's current package list into a `requirement.txt` use
+Install the requirements in `requirements.txt` with
+
+```shell
+pip install -r requirements.txt
+```
+
+>Note to record your environment's current package list into a `requirements.txt` use
 >
 >```shell
->pip freeze > requirement.txt
+>pip freeze > requirements.txt
 >```
-
-[GitHub reference](https://github.com/yuanbit/sentiment140-biLSTM/)
-
-[Kaggle](https://www.kaggle.com/datasets/kazanova/sentiment140/data)
