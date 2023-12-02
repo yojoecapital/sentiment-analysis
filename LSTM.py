@@ -12,15 +12,14 @@ class Classifier(nn.Module):
         lstm_layers: int, 
         bidirectional: bool, 
         dropout_probability: float, 
-        padding_idx: int
+        padding_idx: int,
+        name: str
     ):
         super(Classifier, self).__init__()
+        self.name = name
 
         self.embedding = nn.Embedding(input_dim, embedding_dim, padding_idx=padding_idx)
 
-        # pack_padded_sequence packes the embedding by only using the true sequence lengths
-        # i.e. getting rid of the padded tokens
-        self.packed_embedding = nn.utils.rnn.pack_padded_sequence
         self.lstm = nn.LSTM(
             embedding_dim, 
             hidden_dim,
@@ -28,19 +27,25 @@ class Classifier(nn.Module):
             bidirectional=bidirectional,
             dropout=dropout_probability
         )
-        self.pad_sequence = nn.utils.rnn.pad_packed_sequence
+
         self.dropout = nn.Dropout(dropout_probability)
+        
         self.fully_connected = nn.Linear(hidden_dim * 2, output_dim)
 
     def forward(self, sequences, true_lengths):
+
         # (sequence_dim, batch_size) ->
         embedded = self.dropout(self.embedding(sequences))
+
         # (sequence_dim, batch_size, embedding_dim) ->
-        packed_embedded = self.packed_embedding(embedded, true_lengths.to('cpu'))
+
+        # pack_padded_sequence packes the embedding by only using the true sequence lengths
+        # i.e. getting rid of the padded tokens
+        packed_embedded = nn.utils.rnn.pack_padded_sequence(embedded, true_lengths.to('cpu'))
         packed_output, (hidden, cell) = self.lstm(packed_embedded)
 
         # unpack sequence to a tensor
-        output, output_lengths = self.pad_sequence(packed_output)
+        output, output_lengths = nn.utils.rnn.pad_packed_sequence(packed_output)
 
         # hidden: (D * lstm_layers, hidden_him) ->
         # where D = 2 if bidirectional else 1
@@ -48,6 +53,6 @@ class Classifier(nn.Module):
 
         # (batch_size, D * hidden_dim) ->
         predictions = self.fully_connected(hidden)
-        
+
         # (batch_size, 1)
         return predictions

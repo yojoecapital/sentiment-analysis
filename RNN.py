@@ -12,9 +12,11 @@ class Classifier(nn.Module):
         rnn_layers: int, 
         bidirectional: bool,
         dropout_probability: float,
-        padding_idx: int
+        padding_idx: int,
+        name: str
     ):
         super(Classifier, self).__init__()
+        self.name = name
 
         self.embedding = nn.Embedding(input_dim, embedding_dim, padding_idx=padding_idx)
 
@@ -27,6 +29,7 @@ class Classifier(nn.Module):
         )
 
         self.dropout = nn.Dropout(dropout_probability)
+
         self.fully_connected = nn.Linear(hidden_dim * 2, output_dim)
 
     def forward(self, sequences, true_lengths):
@@ -41,7 +44,7 @@ class Classifier(nn.Module):
         # where D = 2 if bidirectional else 1
         # concatenate hidden states if bidirectional
         hidden = self.dropout(torch.cat((hidden[-2, :, :], hidden[-1, :, :]), dim=1))
-        
+
         # (batch_size, D * hidden_dim) ->
         predictions = self.fully_connected(hidden)
         
