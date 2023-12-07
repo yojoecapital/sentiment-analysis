@@ -1,6 +1,6 @@
 # Sentiment Analysis Project
 
-This project focuses on a comparative analysis between Convolutional Neural Networks (CNN) and Recurrent Neural Networks (RNN) for sentiment analysis, utilizing the Sentiment140 dataset from Kaggle.
+This project focuses on a comparative analysis between Convolutional Neural Networks (CNN) and Recurrent Neural Networks (RNN) for sentiment analysis, utilizing the Sentiment140 dataset from [Kaggle](https://www.kaggle.com/datasets/kazanova/sentiment140/).
 
 ## Getting Started
 
